@@ -26,6 +26,6 @@ If the player successfully guides the ray into the target block within the speci
 If the ray does not reach the target within the time limit, the game ends in failure.
 
 ## Level Editing Feature
-The game also includes an editing mode, allowing instructors to design custom levels.
+The game also includes an editing mode, allowing caregiver to design custom levels.
 
 For example, instructors can place fixed, non-removable obstacles by pressing on-screen buttons.
