@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ray Grid Puzzle (8x8)</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+      color: #222;
+    }
+    h1 { text-align: center; margin: 0 0 10px; }
+
+    .panel {
+      max-width: 760px;
+      margin: 0 auto 12px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid #ccc;
+      background: #fafafa;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #f0f0f0; }
+    button:active { transform: translateY(1px); }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #444;
+      margin-top: 10px;
+    }
+    .dot {
+      display:inline-block;
+      width: 10px; height: 10px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 6px;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+
+    .grid-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+      position: relative;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(8, 52px);
+      grid-template-rows: repeat(8, 52px);
+      gap: 4px;
+      background-color: #ddd;
+      padding: 12px;
+      border-radius: 12px;
+      user-select: none;
+      position: relative;
+    }
+
+    .grid-cover {
+      position: absolute;
+      /* Cover cells from (1,1) to (6,6) in internal index (display 2,2 to 7,7) */
+      /* Start position: 12px padding + 1 cell (52px) + 1 gap (4px) = 68px */
+      top: 68px;
+      left: 68px;
+      /* Size: 6 cells (6 * 52px) + 5 gaps (5 * 4px) = 312px + 20px = 332px */
+      width: 332px;
+      height: 332px;
+      background-color: #303D4E;
+      border: 3px solid #000000;
+      border-radius: 8px;
+      z-index: 1000;
+      display: none; /* Hidden by default */
+      pointer-events: none; /* Allow clicks to pass through when visible */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      opacity: 1; /* Fully opaque - completely hide covered cells */
+    }
+
+    .grid-cover.active {
+      display: block !important;
+    }
+
+    .grid-cell {
+      background-color: #fff;
+      border: 1px solid #cfcfcf;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      font-size: 11px;
+      color: #666;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.12s, transform 0.08s;
+    }
+    .grid-cell:hover { transform: scale(1.02); }
+
+    /* Player obstacle */
+    .cell-obstacle {
+      background-color: #2c3e50;
+      color: #fff;
+    }
+
+    /* Fixed obstacle */
+    .cell-fixed {
+      background-color: #111;
+      color: #fff;
+      cursor: not-allowed;
+    }
+
+    /* Entry/Exit markers */
+    .cell-entry {
+      outline: 3px solid #1e90ff;
+      outline-offset: 1px;
+    }
+    .cell-exit {
+      outline: 3px solid #ff8c00;
+      outline-offset: 1px;
+    }
+
+    /* Ray path */
+    .cell-ray {
+      background-color: #dff0ff;
+    }
+    .cell-ray-head {
+      background-color: #76b9ff;
+      color: #08304f;
+      font-weight: 800;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      color: #444;
+      font-weight: 600;
+    }
+
+    .firebase-status {
+      font-size: 13px;
+      color: #444;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timer-display {
+      font-size: 18px;
+      font-weight: bold;
+      color: #e74c3c;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background-color: #fff3cd;
+      border: 2px solid #e74c3c;
+      border-radius: 8px;
+    }
+
+    .timer-display.warning {
+      color: #f39c12;
+      border-color: #f39c12;
+      background-color: #fff8e1;
+    }
+
+    /* Success Modal */
+    .success-modal {
+      display: none; /* Hidden by default */
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.3s;
+    }
+
+    .success-modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .success-modal-content {
+      background-color: #fff;
+      padding: 30px 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      position: relative;
+      min-width: 300px;
+      animation: slideDown 0.3s;
+    }
+
+    .success-modal-content h2 {
+      margin: 0 0 15px 0;
+      color: #2ecc71;
+      font-size: 28px;
+    }
+
+    .success-modal-content p {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 18px;
+    }
+
+    .score-panel {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      text-align: left;
+    }
+
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .score-item:last-child {
+      border-bottom: none;
+    }
+
+    .score-label {
+      font-size: 16px;
+      color: #495057;
+      font-weight: 500;
+    }
+
+    .score-value {
+      font-size: 18px;
+      color: #2ecc71;
+      font-weight: bold;
+    }
+
+    #totalScore {
+      color: #e74c3c;
+      font-size: 20px;
+    }
+
+    .success-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #999;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .success-close:hover {
+      color: #333;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+  </style>
+
+  <!-- Optional Firebase SDK (keep if you want mat presses as input) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-config.js"></script>
+</head>
+
+<body>
+  <h1>Ray Grid Puzzle (8×8)</h1>
+
+  <div class="panel">
+    <div class="row">
+      <div class="btns">
+        <button id="btnFire">Fire Ray</button>
+        <button id="btnReset">Reset Player Obstacles</button>
+        <button id="btnClear">Clear All (Except Fixed)</button>
+        <button id="btnToggleCover">Edit Mode</button>
+        <button id="btnClearFixed">Clear Fixed Obstacles</button>
+      </div>
+
+      <div class="firebase-status">
+        <span id="firebaseIndicator">🔴</span>
+        <span id="firebaseText">Firebase: Not initialized</span>
+      </div>
+      
+      <div class="timer-display" id="timerDisplay" style="display: none;">
+        <span>⏱️</span>
+        <span id="timerText">02:00</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="dot" style="background:#2c3e50;"></span>Player obstacle (click to toggle)</div>
+      <div><span class="dot" style="background:#111;"></span>Fixed obstacle (immutable)</div>
+      <div><span class="dot" style="background:#dff0ff;"></span>Ray path</div>
+      <div><span class="dot" style="background:#76b9ff;"></span>Ray head</div>
+      <div><span class="dot" style="background:transparent; outline:3px solid #1e90ff;"></span>Entry-adjacent cell</div>
+      <div><span class="dot" style="background:transparent; outline:3px solid #ff8c00;"></span>Exit-adjacent cell</div>
+    </div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid-container" id="grid-container">
+      <div class="grid-cover" id="grid-cover"></div>
+    </div>
+  </div>
+
+  <div class="status" id="status">Click cells to place obstacles, then press "Fire Ray".</div>
+
+  <!-- Success Modal -->
+  <div class="success-modal" id="successModal">
+    <div class="success-modal-content">
+      <span class="success-close" id="successClose">&times;</span>
+      <h2>成功！</h2>
+      <p>射線成功到達終點！</p>
+      
+      <div class="score-panel">
+        <div class="score-item">
+          <span class="score-label">綜合分數：</span>
+          <span class="score-value" id="totalScore">0</span>
+        </div>
+        <div class="score-item">
+          <span class="score-label">放置地墊數量：</span>
+          <span class="score-value" id="obstacleCount">0</span>
+        </div>
+        <div class="score-item">
+          <span class="score-label">測試次數：</span>
+          <span class="score-value" id="testCount">0</span>
+        </div>
+        <div class="score-item">
+          <span class="score-label">使用時間：</span>
+          <span class="score-value" id="timeUsed">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Failure Modal -->
+  <div class="success-modal" id="failureModal">
+    <div class="success-modal-content">
+      <span class="success-close" id="failureClose">&times;</span>
+      <h2 style="color: #e74c3c;">失敗</h2>
+      <p>時間到了！</p>
+    </div>
+  </div>
+
+  <script src="grid-test.js"></script>
+</body>
+</html>
